@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Weather Forecast</h1>
+            <p class="subtitle">Enter a city name to get the current weather and 5-day forecast</p>
+        </header>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    id="cityInput" 
+                    class="search-input" 
+                    placeholder="Enter city name..." 
+                    aria-label="City search input">
+                <button id="searchBtn" class="search-btn" aria-label="Search for city">Search</button>
+            </div>
+            
+            <!-- Temperature Unit Toggle -->
+            <div class="unit-toggle">
+                <label for="unitSelect" class="unit-label">Temperature:</label>
+                <select id="unitSelect" class="unit-select" aria-label="Temperature unit selector">
+                    <option value="celsius">Celsius (°C)</option>
+                    <option value="fahrenheit">Fahrenheit (°F)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Error Message Display -->
+        <div id="errorContainer" class="error-container" role="alert" aria-live="polite"></div>
+
+        <!-- Loading Indicator -->
+        <div id="loadingContainer" class="loading-container" aria-live="polite" aria-label="Loading indicator">
+            <p id="loadingText" class="loading-text"></p>
+        </div>
+
+        <!-- Current Weather Section -->
+        <div id="currentWeatherContainer" class="current-weather-container">
+            <div id="currentWeather" class="current-weather">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- 5-Day Forecast Section -->
+        <div id="forecastContainer" class="forecast-container">
+            <h2>5-Day Forecast</h2>
+            <div id="forecastGrid" class="forecast-grid">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Last Search Info -->
+        <footer class="footer">
+            <p id="lastSearchInfo" class="last-search-info"></p>
+        </footer>
+    </div>
+
+    <!-- 
+        IMPORTANT: API Key Setup
+        1. Sign up for free at: https://www.weatherapi.com/
+        2. Copy your API key from the dashboard
+        3. Replace 'YOUR_API_KEY' in script.js with your actual key
+    -->
+
+    <script src="script.js"></script>
+</body>
+</html>
