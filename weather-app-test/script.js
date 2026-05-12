@@ -7,6 +7,7 @@ const API_BASE_URL = 'https://api.weatherapi.com/v1/forecast.json';
 // ===== DOM Elements =====
 const cityInput = document.getElementById('cityInput');
 const searchBtn = document.getElementById('searchBtn');
+const geoBtn = document.getElementById('geoBtn');
 const errorContainer = document.getElementById('errorContainer');
 const loadingContainer = document.getElementById('loadingContainer');
 const loadingText = document.getElementById('loadingText');
@@ -14,17 +15,27 @@ const currentWeatherContainer = document.getElementById('currentWeatherContainer
 const currentWeather = document.getElementById('currentWeather');
 const forecastContainer = document.getElementById('forecastContainer');
 const forecastGrid = document.getElementById('forecastGrid');
+const forecastToggleContainer = document.getElementById('forecastToggleContainer');
+const fiveDayToggle = document.getElementById('fiveDayToggle');
+const hourlyToggle = document.getElementById('hourlyToggle');
+const hourlyContainer = document.getElementById('hourlyContainer');
+const hourlyGrid = document.getElementById('hourlyGrid');
 const unitSelect = document.getElementById('unitSelect');
 const lastSearchInfo = document.getElementById('lastSearchInfo');
+const favoritesToggle = document.getElementById('favoritesToggle');
+const favoritesList = document.getElementById('favoritesList');
 
 // ===== State Variables =====
 let currentWeatherData = null;
 let forecastData = null;
 let isCelsius = true;
+let favorites = [];
+let currentCity = null;
 
 // ===== Initialization =====
 document.addEventListener('DOMContentLoaded', () => {
     loadPreferences();
+    loadFavorites();
     const lastCity = localStorage.getItem('lastSearchedCity');
     if (lastCity) {
         cityInput.value = lastCity;
@@ -40,12 +51,36 @@ cityInput.addEventListener('keypress', (e) => {
     }
 });
 
+geoBtn.addEventListener('click', handleGeolocation);
+
+fiveDayToggle.addEventListener('click', () => {
+    fiveDayToggle.classList.add('active');
+    hourlyToggle.classList.remove('active');
+    forecastContainer.classList.add('show');
+    hourlyContainer.classList.remove('show');
+});
+
+hourlyToggle.addEventListener('click', () => {
+    hourlyToggle.classList.add('active');
+    fiveDayToggle.classList.remove('active');
+    hourlyContainer.classList.add('show');
+    forecastContainer.classList.remove('show');
+});
+
+favoritesToggle.addEventListener('click', () => {
+    favoritesList.classList.toggle('show');
+    favoritesToggle.classList.toggle('active');
+});
+
 unitSelect.addEventListener('change', (e) => {
     isCelsius = e.target.value === 'celsius';
     localStorage.setItem('tempUnit', isCelsius ? 'celsius' : 'fahrenheit');
     if (currentWeatherData && forecastData) {
         displayCurrentWeather(currentWeatherData);
         displayForecast(forecastData);
+        if (currentWeatherData.forecast.forecastday[0].hour) {
+            displayHourlyForecast(currentWeatherData.forecast.forecastday);
+        }
     }
 });
 
@@ -70,9 +105,14 @@ async function handleSearch() {
         const data = await fetchWeather(city);
         currentWeatherData = data;
         forecastData = data.forecast.forecastday;
+        currentCity = { name: data.location.name, country: data.location.country };
         
         displayCurrentWeather(data);
         displayForecast(data.forecast.forecastday);
+        displayHourlyForecast(data.forecast.forecastday);
+        
+        // Show forecast toggle
+        forecastToggleContainer.style.display = 'flex';
         
         // Save last searched city
         localStorage.setItem('lastSearchedCity', city);
@@ -83,6 +123,54 @@ async function handleSearch() {
         hideLoading();
         showError(error.message);
     }
+}
+
+async function handleGeolocation() {
+    if (!navigator.geolocation) {
+        showError('Geolocation is not supported by your browser');
+        return;
+    }
+
+    showLoading('Getting your location...');
+    clearError();
+
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const { latitude, longitude } = position.coords;
+            try {
+                const data = await fetchWeatherByCoords(latitude, longitude);
+                currentWeatherData = data;
+                forecastData = data.forecast.forecastday;
+                currentCity = { name: data.location.name, country: data.location.country };
+                
+                displayCurrentWeather(data);
+                displayForecast(data.forecast.forecastday);
+                displayHourlyForecast(data.forecast.forecastday);
+                
+                // Show forecast toggle
+                forecastToggleContainer.style.display = 'flex';
+                
+                cityInput.value = data.location.name;
+                localStorage.setItem('lastSearchedCity', data.location.name);
+                updateLastSearchInfo(data.location.name);
+                
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showError(error.message);
+            }
+        },
+        (error) => {
+            hideLoading();
+            if (error.code === error.PERMISSION_DENIED) {
+                showError('Location permission denied. Please enable location access in your browser settings.');
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+                showError('Location information is unavailable.');
+            } else {
+                showError('An error occurred while getting your location.');
+            }
+        }
+    );
 }
 
 async function fetchWeather(city) {
@@ -116,6 +204,31 @@ async function fetchWeather(city) {
     }
 }
 
+async function fetchWeatherByCoords(lat, lon) {
+    try {
+        const params = new URLSearchParams({
+            key: API_KEY,
+            q: `${lat},${lon}`,
+            days: 5,
+            aqi: 'no'
+        });
+
+        const response = await fetch(`${API_BASE_URL}?${params}`);
+
+        if (!response.ok) {
+            throw new Error('Unable to fetch weather for your location.');
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        if (error instanceof TypeError) {
+            throw new Error('Network error. Please check your internet connection.');
+        }
+        throw error;
+    }
+}
+
 function displayCurrentWeather(data) {
     const current = data.current;
     const location = data.location;
@@ -123,6 +236,8 @@ function displayCurrentWeather(data) {
     const temp = isCelsius ? current.temp_c : current.temp_f;
     const feelsLike = isCelsius ? current.feelslike_c : current.feelslike_f;
     const tempUnit = isCelsius ? '°C' : '°F';
+    
+    const isFavorite = favorites.some(fav => fav.name === location.name && fav.country === location.country);
     
     const html = `
         <div class="weather-city">${location.name}, ${location.country}</div>
@@ -143,6 +258,9 @@ function displayCurrentWeather(data) {
                 <span class="detail-value">${Math.round(current.wind_kph)} km/h</span>
             </div>
         </div>
+        <button class="add-to-favorites-btn ${isFavorite ? 'added' : ''}" onclick="toggleFavorite('${location.name}', '${location.country}')">
+            ${isFavorite ? '★ Added to Favorites' : '☆ Add to Favorites'}
+        </button>
     `;
     
     currentWeather.innerHTML = html;
@@ -176,6 +294,45 @@ function displayForecast(forecastDays) {
     });
     
     forecastContainer.classList.add('show');
+}
+
+function displayHourlyForecast(forecastDays) {
+    hourlyGrid.innerHTML = '';
+    
+    if (!forecastDays || !forecastDays[0] || !forecastDays[0].hour) {
+        hourlyContainer.classList.remove('show');
+        return;
+    }
+    
+    const hourlyData = forecastDays[0].hour;
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    // Show next 24 hours starting from current hour
+    for (let i = currentHour; i < currentHour + 24 && i < hourlyData.length + currentHour; i++) {
+        const hourIndex = i < hourlyData.length ? i : i - 24;
+        if (hourIndex < 0 || hourIndex >= hourlyData.length) continue;
+        
+        const hour = hourlyData[hourIndex];
+        const temp = isCelsius ? hour.temp_c : hour.temp_f;
+        const tempUnit = isCelsius ? '°C' : '°F';
+        
+        const timeStr = new Date(hour.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        
+        const hourCard = document.createElement('div');
+        hourCard.className = 'hourly-card';
+        hourCard.innerHTML = `
+            <div class="hourly-time">${timeStr}</div>
+            <div class="hourly-icon">${getWeatherEmoji(hour.condition.code, hour.is_day)}</div>
+            <div class="hourly-temp">${Math.round(temp)}${tempUnit}</div>
+            <div class="hourly-precipitation">💧 ${hour.chance_of_rain}%</div>
+            <div class="hourly-wind">💨 ${Math.round(hour.wind_kph)}km/h</div>
+        `;
+        
+        hourlyGrid.appendChild(hourCard);
+    }
+    
+    hourlyContainer.classList.add('show');
 }
 
 // ===== Utility Functions =====
@@ -246,4 +403,72 @@ function loadPreferences() {
         isCelsius = true;
         unitSelect.value = 'celsius';
     }
+}
+
+// ===== Favorites Management =====
+function loadFavorites() {
+    const saved = localStorage.getItem('favoritesCities');
+    favorites = saved ? JSON.parse(saved) : [];
+    displayFavoritesList();
+}
+
+function saveFavorites() {
+    localStorage.setItem('favoritesCities', JSON.stringify(favorites));
+    displayFavoritesList();
+}
+
+function toggleFavorite(cityName, country) {
+    const index = favorites.findIndex(fav => fav.name === cityName && fav.country === country);
+    
+    if (index > -1) {
+        favorites.splice(index, 1);
+    } else {
+        if (favorites.length >= 10) {
+            showError('Maximum 10 favorites allowed. Please remove one to add another.');
+            return;
+        }
+        // Get current temp for display
+        const temp = isCelsius ? currentWeatherData.current.temp_c : currentWeatherData.current.temp_f;
+        favorites.push({ name: cityName, country: country, temp: Math.round(temp) });
+    }
+    
+    saveFavorites();
+    // Update button state
+    if (currentWeatherData) {
+        displayCurrentWeather(currentWeatherData);
+    }
+}
+
+function displayFavoritesList() {
+    favoritesList.innerHTML = '';
+    
+    if (favorites.length === 0) {
+        favoritesList.innerHTML = '<div class="no-favorites">No favorites yet. Add one!</div>';
+        return;
+    }
+    
+    favorites.forEach((favorite) => {
+        const item = document.createElement('div');
+        item.className = 'favorite-item';
+        item.innerHTML = `
+            <div class="favorite-city" style="cursor: pointer;" onclick="searchFavorite('${favorite.name}')">
+                <span class="favorite-city-name">${favorite.name}</span>
+                <span class="favorite-city-temp">${favorite.country}</span>
+            </div>
+            <button class="favorite-remove-btn" onclick="removeFavorite('${favorite.name}', '${favorite.country}')">Remove</button>
+        `;
+        favoritesList.appendChild(item);
+    });
+}
+
+function removeFavorite(cityName, country) {
+    favorites = favorites.filter(fav => !(fav.name === cityName && fav.country === country));
+    saveFavorites();
+}
+
+function searchFavorite(cityName) {
+    cityInput.value = cityName;
+    favoritesList.classList.remove('show');
+    favoritesToggle.classList.remove('active');
+    handleSearch();
 }

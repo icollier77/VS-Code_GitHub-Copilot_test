@@ -23,6 +23,19 @@
                     placeholder="Enter city name..." 
                     aria-label="City search input">
                 <button id="searchBtn" class="search-btn" aria-label="Search for city">Search</button>
+                <button id="geoBtn" class="geo-btn" title="Use my location" aria-label="Get weather for current location">📍</button>
+            </div>
+            
+            <!-- Favorites Dropdown -->
+            <div class="favorites-section">
+                <div class="favorites-dropdown">
+                    <button id="favoritesToggle" class="favorites-toggle" aria-label="Toggle favorites list" aria-expanded="false">
+                        ⭐ Favorites
+                    </button>
+                    <div id="favoritesList" class="favorites-list" role="menu">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
             </div>
             
             <!-- Temperature Unit Toggle -->
@@ -50,10 +63,24 @@
             </div>
         </div>
 
+        <!-- Forecast View Toggle -->
+        <div id="forecastToggleContainer" class="forecast-toggle-container" style="display: none;">
+            <button id="fiveDayToggle" class="forecast-toggle active" aria-pressed="true">5-Day Forecast</button>
+            <button id="hourlyToggle" class="forecast-toggle" aria-pressed="false">24-Hour Forecast</button>
+        </div>
+
         <!-- 5-Day Forecast Section -->
         <div id="forecastContainer" class="forecast-container">
             <h2>5-Day Forecast</h2>
             <div id="forecastGrid" class="forecast-grid">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- 24-Hour Forecast Section -->
+        <div id="hourlyContainer" class="hourly-container">
+            <h2>24-Hour Forecast</h2>
+            <div id="hourlyGrid" class="hourly-grid">
                 <!-- Populated by JavaScript -->
             </div>
         </div>
